@@ -1,7 +1,8 @@
 import numpy as np
-import pandas as pd  # Hier wurde der fehlende Import hinzugefügt
+import pandas as pd
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QFrame, QGridLayout, QLabel
+from utils import safe_numeric_filter
 
 class StatsPanel(QFrame):
     def __init__(self, parent=None):
@@ -80,25 +81,25 @@ class StatsPanel(QFrame):
         
         if key not in self.stats_boxes:
             self.add_stats_box(column_name, file_name)
-            
-        if x_min is not None and x_max is not None and x_column in df.columns:
+        
+        filtered_df = df
+        
+        if x_min is not None and x_max is not None:
             try:
-                # Versuche, Filterung basierend auf x-Achsen-Bereich durchzuführen
-                # Prüfe den Datentyp der Spalte
-                if pd.api.types.is_numeric_dtype(df[x_column]):
-                    # Für numerische Spalten
-                    filtered_df = df[(df[x_column] >= float(x_min)) & (df[x_column] <= float(x_max))]
+                # Handle timestamp specifically
+                if x_column == 'timestamp_numeric' and 'timestamp' in df.columns:
+                    # Filter using timestamp_numeric but keep the display format
+                    filtered_df = safe_numeric_filter(df, x_column, x_min, x_max)
+                elif x_column == 'time_of_day_numeric' and 'time_of_day' in df.columns:
+                    # Filter using time_of_day_numeric but keep the display format
+                    filtered_df = safe_numeric_filter(df, x_column, x_min, x_max)
                 else:
-                    # Für nicht-numerische Spalten (z.B. Strings, Datumsangaben)
-                    # In diesem Fall alle Daten verwenden
-                    filtered_df = df
-                    print(f"Warnung: Nicht-numerische Spalte '{x_column}' kann nicht gefiltert werden.")
+                    # Standard numeric filtering
+                    filtered_df = safe_numeric_filter(df, x_column, x_min, x_max)
             except Exception as e:
-                # Bei Fehlern alle Daten verwenden
-                filtered_df = df
+                # Fall back to all data on error
                 print(f"Fehler beim Filtern der Daten: {e}")
-        else:
-            filtered_df = df
+                filtered_df = df
             
         if len(filtered_df) > 0 and column_name in filtered_df.columns:
             avg_val = filtered_df[column_name].mean()
